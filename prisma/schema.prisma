@@ -1,0 +1,209 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  MERCHANT
+  ADMIN
+}
+
+enum OAuthProviderType {
+  GOOGLE
+  FACEBOOK
+}
+
+enum StorePlatform {
+  SHOPIFY
+  WOOCOMMERCE
+  YOUCAN
+}
+
+enum StoreStatus {
+  ACTIVE
+  DISCONNECTED
+  SUSPENDED
+}
+
+enum OrderStatus {
+  PENDING_CONFIRMATION
+  CONFIRMED
+  CANCELLED
+  FAILED
+}
+
+enum DeliveryStatus {
+  PENDING
+  SENT
+  IN_TRANSIT
+  DELIVERED
+  RETURNED
+  FAILED
+}
+
+enum MessageDirection {
+  INBOUND
+  OUTBOUND
+}
+
+enum MessageStatus {
+  QUEUED
+  SENT
+  DELIVERED
+  FAILED
+}
+
+enum TrialStatus {
+  ACTIVE
+  EXPIRED
+  CANCELLED
+}
+
+model User {
+  id         String          @id @default(cuid())
+  email      String          @unique
+  password   String?
+  firstName  String?
+  lastName   String?
+  phone      String?
+  role       UserRole        @default(MERCHANT)
+  isActive   Boolean         @default(true)
+  stores     Store[]
+  providers  OAuthProvider[]
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
+}
+
+model OAuthProvider {
+  id         String             @id @default(cuid())
+  provider   OAuthProviderType
+  providerId String
+  userId     String
+  user       User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt  DateTime           @default(now())
+
+  @@unique([provider, providerId])
+}
+
+model Store {
+  id            String        @id @default(cuid())
+  userId        String
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  platform      StorePlatform
+  name          String
+  domain        String
+  accessToken   String?
+  status        StoreStatus   @default(ACTIVE)
+  timezone      String?       @default("Africa/Algiers")
+  integration   Integration?
+  orders        Order[]
+  messages      Message[]
+  products      Product[]
+  trials        Trial[]
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+}
+
+model Integration {
+  id                        String   @id @default(cuid())
+  storeId                   String   @unique
+  store                     Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  webhookSecret             String?
+  verificationToken         String?
+  whatsappBusinessId        String?
+  whatsappPhoneNumberId     String?
+  whatsappTemplateName      String?
+  whatsappTemplateLanguage  String?  @default("fr")
+  deliveryPartnerEnabled    Boolean  @default(false)
+  deliveryPartnerApiKey     String?
+  deliveryPartnerWebhookUrl String?
+  lastSyncedProductsAt      DateTime?
+  createdAt                 DateTime @default(now())
+  updatedAt                 DateTime @updatedAt
+}
+
+model Order {
+  id                  String          @id @default(cuid())
+  storeId             String
+  store               Store           @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  externalId          String
+  status              OrderStatus     @default(PENDING_CONFIRMATION)
+  customerName        String?
+  customerPhone       String?
+  customerAddress     String?
+  wilayaNumber        Int?
+  wilayaFullName      String?
+  productsSnapshot    Json?
+  deliveryPrice       Decimal?        @db.Decimal(10, 2)
+  totalAmount         Decimal         @db.Decimal(12, 2)
+  currency            String          @default("DZD")
+  notes               String?
+  trackingId          String?
+  deliveryStatus      DeliveryStatus  @default(PENDING)
+  deliveryPartnerRef  String?
+  confirmedAt         DateTime?
+  cancelledAt         DateTime?
+  messages            Message[]
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+
+  @@unique([storeId, externalId])
+}
+
+model Message {
+  id                 String          @id @default(cuid())
+  storeId            String
+  store              Store           @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  orderId            String
+  order              Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  direction          MessageDirection
+  templateName       String?
+  language           String?         @default("fr")
+  placeholders       Json?
+  payload            Json?
+  whatsappMessageId  String?
+  status             MessageStatus   @default(QUEUED)
+  errorCode          String?
+  errorMessage       String?
+  sentAt             DateTime?
+  deliveredAt        DateTime?
+  createdAt          DateTime        @default(now())
+}
+
+model Trial {
+  id             String      @id @default(cuid())
+  storeId        String
+  store          Store       @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  startedAt      DateTime    @default(now())
+  endsAt         DateTime
+  status         TrialStatus @default(ACTIVE)
+  cancelledAt    DateTime?
+  reason         String?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+}
+
+model Product {
+  id          String   @id @default(cuid())
+  storeId     String
+  store       Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  externalId  String
+  title       String
+  description String?
+  price       Decimal? @db.Decimal(12, 2)
+  currency    String?  @default("DZD")
+  sku         String?
+  images      Json?
+  metadata    Json?
+  active      Boolean  @default(true)
+  syncedAt    DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([storeId, externalId])
+}
+
