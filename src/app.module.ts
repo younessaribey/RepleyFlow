@@ -20,6 +20,7 @@ import { WoocommerceModule } from './modules/woocommerce/woocommerce.module';
 import { YoucanModule } from './modules/youcan/youcan.module';
 import { QueueModule } from './queue/queue.module';
 import { SseModule } from './sse/sse.module';
+import { AiModule } from './modules/ai/ai.module';
 
 @Module({
   imports: [
@@ -56,6 +57,7 @@ import { SseModule } from './sse/sse.module';
     YoucanModule,
     QueueModule,
     SseModule,
+    AiModule,
   ],
 })
 export class AppModule {}

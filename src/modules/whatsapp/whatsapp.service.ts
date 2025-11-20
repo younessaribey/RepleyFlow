@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import axios from 'axios';
-import { MessageDirection, MessageStatus } from '@prisma/client';
+import { MessageDirection, MessageStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '../../database/prisma.service';
 import {
   buildTemplateComponents,
@@ -9,6 +9,7 @@ import {
 } from '../../common/utils/template.util';
 import { MessagesService } from '../messages/messages.service';
 import { SseService } from '../../sse/sse.service';
+import { AiService } from '../ai/ai.service';
 
 @Injectable()
 export class WhatsappService {
@@ -19,6 +20,7 @@ export class WhatsappService {
     private readonly configService: ConfigService,
     private readonly messagesService: MessagesService,
     private readonly sseService: SseService,
+    private readonly aiService: AiService,
   ) {}
 
   async sendTemplateMessage(job: {
@@ -149,6 +151,79 @@ export class WhatsappService {
     }
   }
 
+  async sendTextMessage(params: {
+    phoneNumberId: string;
+    to: string;
+    text: string;
+    storeId: string;
+    orderId: string;
+  }) {
+    const { phoneNumberId, to, text, storeId, orderId } = params;
+
+    this.logger.log(`📤 Sending text message to ${to}`);
+
+    // Log the message first
+    const logged = await this.messagesService.logMessage({
+      storeId,
+      orderId,
+      direction: MessageDirection.OUTBOUND,
+      payload: { text: { body: text } },
+    });
+
+    try {
+      const response = await axios.post(
+        `https://graph.facebook.com/v20.0/${phoneNumberId}/messages`,
+        {
+          messaging_product: 'whatsapp',
+          to,
+          type: 'text',
+          text: { body: text },
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${this.configService.get<string>('WHATSAPP_ACCESS_TOKEN')}`,
+            'Content-Type': 'application/json',
+          },
+        },
+      );
+
+      const messageId = response.data?.messages?.[0]?.id;
+      await this.prisma.message.update({
+        where: { id: logged.id },
+        data: {
+          status: MessageStatus.SENT,
+          whatsappMessageId: messageId,
+          sentAt: new Date(),
+        },
+      });
+
+      this.sseService.emit(
+        'message_status_update',
+        {
+          storeId,
+          orderId,
+          messageId: logged.id,
+          status: MessageStatus.SENT,
+        },
+        storeId,
+      );
+
+      this.logger.log(`✅ Text message sent successfully: ${messageId}`);
+      return { success: true, messageId };
+    } catch (error) {
+      await this.prisma.message.update({
+        where: { id: logged.id },
+        data: {
+          status: MessageStatus.FAILED,
+          errorMessage: (error as Error).message,
+        },
+      });
+
+      this.logger.error('Failed to send text message', error as Error);
+      throw error;
+    }
+  }
+
   async handleWebhook(body: any) {
     this.logger.log('🔔 WhatsApp webhook received');
     this.logger.log(`📦 Raw body: ${JSON.stringify(body)}`);
@@ -251,6 +326,47 @@ export class WhatsappService {
             },
             order.storeId,
           );
+
+          // 🤖 Generate and send AI reply
+          try {
+            this.logger.log('🤖 Generating AI reply...');
+
+            // Get conversation history
+            const conversationHistory =
+              await this.aiService.getConversationHistory(order.id, 10);
+
+            // Generate AI reply
+            const aiReply = await this.aiService.generateReply({
+              customerMessage: message.text?.body || '',
+              customerName: order.customerName || undefined,
+              orderDetails: {
+                orderId: order.externalId,
+                totalAmount: order.totalAmount.toString(),
+                wilayaFullName: order.wilayaFullName || undefined,
+                status: order.status,
+              },
+              conversationHistory,
+            });
+
+            this.logger.log(`🤖 AI reply: ${aiReply}`);
+
+            // Send the AI reply back to customer
+            await this.sendTextMessage({
+              phoneNumberId,
+              to: customerPhone,
+              text: aiReply,
+              storeId: order.storeId,
+              orderId: order.id,
+            });
+
+            this.logger.log('✅ AI reply sent successfully');
+          } catch (aiError) {
+            this.logger.error(
+              'Failed to generate or send AI reply',
+              aiError as Error,
+            );
+            // Don't throw - we still want to acknowledge the webhook
+          }
         }
       }
     }
