@@ -38,9 +38,7 @@ export class ProductsService {
         );
         break;
       case StorePlatform.YOUCAN:
-        products = await this.youcanService.fetchProducts(
-          store.accessToken ?? undefined,
-        );
+        products = await this.youcanService.fetchProductsForStore(store.id);
         break;
       default:
         products = [];

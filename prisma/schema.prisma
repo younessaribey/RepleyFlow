@@ -73,6 +73,7 @@ model User {
   role       UserRole        @default(MERCHANT)
   isActive   Boolean         @default(true)
   stores     Store[]
+  youcanStores YouCanStore[]
   providers  OAuthProvider[]
   createdAt  DateTime        @default(now())
   updatedAt  DateTime        @updatedAt
@@ -100,6 +101,7 @@ model Store {
   status        StoreStatus   @default(ACTIVE)
   timezone      String?       @default("Africa/Algiers")
   integration   Integration?
+  youcanStore   YouCanStore?
   orders        Order[]
   messages      Message[]
   products      Product[]
@@ -205,5 +207,21 @@ model Product {
   updatedAt   DateTime @updatedAt
 
   @@unique([storeId, externalId])
+}
+
+model YouCanStore {
+  id             String   @id @default(cuid())
+  storeId        String   @unique
+  storeName      String
+  accessToken    String
+  refreshToken   String
+  tokenExpiresAt DateTime
+  webhookSecret  String   @unique
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  storeRecordId  String   @unique
+  store          Store    @relation(fields: [storeRecordId], references: [id], onDelete: Cascade)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 }
 

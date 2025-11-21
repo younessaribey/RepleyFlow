@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { OrdersController } from './orders.controller';
 import { OrdersService } from './orders.service';
 import { QueueModule } from '../../queue/queue.module';
@@ -14,7 +14,7 @@ import { IntegrationsModule } from '../integrations/integrations.module';
     SseModule,
     ShopifyModule,
     WoocommerceModule,
-    YoucanModule,
+    forwardRef(() => YoucanModule),
     IntegrationsModule,
   ],
   controllers: [OrdersController],
