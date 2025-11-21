@@ -18,7 +18,12 @@ export class StoresService {
   listUserStores(userId: string) {
     return this.prisma.store.findMany({
       where: { userId },
-      include: { integration: true },
+      include: {
+        integration: true,
+        _count: {
+          select: { orders: true },
+        },
+      },
     });
   }
 

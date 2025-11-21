@@ -13,7 +13,7 @@ export class DashboardService {
       totalMessages,
       pendingOrders,
       confirmedOrders,
-      deliveredOrders,
+      cancelledOrders,
       recentOrders,
       messageSent,
       messageDelivered,
@@ -41,7 +41,7 @@ export class DashboardService {
       this.prisma.order.count({
         where: {
           store: { userId },
-          status: OrderStatus.DELIVERED,
+          status: OrderStatus.CANCELLED,
         },
       }),
       this.prisma.order.findMany({
@@ -82,7 +82,7 @@ export class DashboardService {
       totalMessages,
       pendingOrders,
       confirmedOrders,
-      deliveredOrders,
+      deliveredOrders: cancelledOrders, // Using cancelled count for now
       recentOrders,
       messageStats: {
         sent: messageSent,
