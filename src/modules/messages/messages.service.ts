@@ -47,6 +47,16 @@ export class MessagesService {
     });
   }
 
+  listUserMessages(userId: string, pagination: PaginationDto) {
+    const { page = 1, limit = 100 } = pagination;
+    return this.prisma.message.findMany({
+      where: { store: { userId } },
+      orderBy: { createdAt: 'desc' },
+      skip: (page - 1) * limit,
+      take: limit,
+    });
+  }
+
   listStoreMessages(storeId: string, pagination: PaginationDto) {
     const { page = 1, limit = 20 } = pagination;
     return this.prisma.message.findMany({

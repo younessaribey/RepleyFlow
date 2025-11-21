@@ -20,6 +20,12 @@ import { OrdersService } from './orders.service';
 export class OrdersController {
   constructor(private readonly ordersService: OrdersService) {}
 
+  @Get()
+  @UseGuards(JwtAuthGuard)
+  listOrders(@CurrentUser() user: CurrentUserType) {
+    return this.ordersService.listUserOrders(user.id);
+  }
+
   @Post('webhook/:platform')
   handleWebhook(
     @Param('platform') platform: string,

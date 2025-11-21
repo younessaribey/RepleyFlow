@@ -110,6 +110,20 @@ export class OrdersService {
     return { success: true };
   }
 
+  async listUserOrders(userId: string) {
+    return this.prisma.order.findMany({
+      where: { store: { userId } },
+      include: {
+        store: true,
+        messages: {
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
   async getOrderForUser(orderId: string, userId: string) {
     const order = await this.prisma.order.findFirst({
       where: { id: orderId, store: { userId } },
