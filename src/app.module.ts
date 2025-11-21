@@ -21,6 +21,7 @@ import { YoucanModule } from './modules/youcan/youcan.module';
 import { QueueModule } from './queue/queue.module';
 import { SseModule } from './sse/sse.module';
 import { AiModule } from './modules/ai/ai.module';
+import { DashboardModule } from './modules/dashboard/dashboard.module';
 
 @Module({
   imports: [
@@ -58,6 +59,7 @@ import { AiModule } from './modules/ai/ai.module';
     QueueModule,
     SseModule,
     AiModule,
+    DashboardModule,
   ],
 })
 export class AppModule {}
